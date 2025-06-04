@@ -193,3 +193,14 @@ Below are demonstration examples of HiDream-E1's capabilities:
 ## License
 
 The code in this repository and the HiDream-E1 models are licensed under [MIT License](./LICENSE).
+
+## Citation
+
+```bibtex
+@article{hidreami1technicalreport,
+  title={HiDream-I1: A High-Efficient Image Generative Foundation Model with Sparse Diffusion Transformer},
+  author={Cai, Qi and Chen, Jingwen and Chen, Yang and Li, Yehao and Long, Fuchen and Pan, Yingwei and Qiu, Zhaofan and Zhang, Yiheng and Gao, Fengbin and Xu, Peihan and others},
+  journal={arXiv preprint arXiv:2505.22705},
+  year={2025}
+}
+```
