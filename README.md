@@ -8,6 +8,7 @@ HiDream-E1 is an image editing model built on [HiDream-I1](https://github.com/Hi
 <span style="color: #FF5733; font-weight: bold">For more features and to experience the full capabilities of our product, please visit [https://vivago.ai/](https://vivago.ai/).</span>
 
 ## Project Updates
+- 📝 **May 28, 2025**: We've released our technical report [HiDream-I1: A High-Efficient Image Generative Foundation Model with Sparse Diffusion Transformer](https://arxiv.org/abs/2505.22705).
 - 🚀 **April 28, 2025**: We've open-sourced the instruction-based image editing model **HiDream-E1**. 
 
 
