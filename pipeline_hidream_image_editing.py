@@ -16,11 +16,11 @@ from diffusers.image_processor import VaeImageProcessor, PipelineImageInput
 from diffusers.loaders import HiDreamImageLoraLoaderMixin
 from diffusers.models import AutoencoderKL, HiDreamImageTransformer2DModel
 from diffusers.schedulers import FlowMatchEulerDiscreteScheduler, UniPCMultistepScheduler
-from diffusers.utils import deprecate, is_torch_xla_available, logging, replace_example_docstring
+from diffusers.utils import deprecate, is_torch_xla_available, replace_example_docstring
 from diffusers.utils.torch_utils import randn_tensor
 from diffusers.pipelines.pipeline_utils import DiffusionPipeline
 from diffusers.pipelines.hidream_image.pipeline_output import HiDreamImagePipelineOutput
-
+import logging
 
 if is_torch_xla_available():
     import torch_xla.core.xla_model as xm
@@ -30,7 +30,14 @@ else:
     XLA_AVAILABLE = False
 
 
-logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()  # Ensure output goes to console
+    ]
+)
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -790,6 +797,8 @@ class HiDreamImageEditingPipeline(DiffusionPipeline, HiDreamImageLoraLoaderMixin
         max_sequence_length: int = 128,
         refine_strength: float = 0.0,
         reload_keys: Any = None,
+        refiner: HiDreamImageTransformer2DModel = None,
+        clip_cfg_norm: bool = True,
         **kwargs,
     ):
         r"""
@@ -1023,9 +1032,14 @@ class HiDreamImageEditingPipeline(DiffusionPipeline, HiDreamImageLoraLoaderMixin
         width = width * self.vae_scale_factor
 
         if self.do_classifier_free_guidance:
-            prompt_embeds_t5 = torch.cat([negative_prompt_embeds_t5, negative_prompt_embeds_t5, prompt_embeds_t5], dim=0)
-            prompt_embeds_llama3 = torch.cat([negative_prompt_embeds_llama3, negative_prompt_embeds_llama3, prompt_embeds_llama3], dim=1)
-            pooled_prompt_embeds = torch.cat([negative_pooled_prompt_embeds, negative_pooled_prompt_embeds, pooled_prompt_embeds], dim=0)
+            if clip_cfg_norm:
+                prompt_embeds_t5 = torch.cat([prompt_embeds_t5, negative_prompt_embeds_t5, prompt_embeds_t5], dim=0)
+                prompt_embeds_llama3 = torch.cat([prompt_embeds_llama3, negative_prompt_embeds_llama3, prompt_embeds_llama3], dim=1)
+                pooled_prompt_embeds = torch.cat([pooled_prompt_embeds, negative_pooled_prompt_embeds, pooled_prompt_embeds], dim=0)
+            else:
+                prompt_embeds_t5 = torch.cat([negative_prompt_embeds_t5, negative_prompt_embeds_t5, prompt_embeds_t5], dim=0)
+                prompt_embeds_llama3 = torch.cat([negative_prompt_embeds_llama3, negative_prompt_embeds_llama3, prompt_embeds_llama3], dim=1)
+                pooled_prompt_embeds = torch.cat([negative_pooled_prompt_embeds, negative_pooled_prompt_embeds, pooled_prompt_embeds], dim=0)
             
             target_prompt_embeds_t5 = torch.cat([target_negative_prompt_embeds_t5, target_prompt_embeds_t5], dim=0)
             target_prompt_embeds_llama3 = torch.cat([target_negative_prompt_embeds_llama3, target_prompt_embeds_llama3], dim=1)
@@ -1063,51 +1077,85 @@ class HiDreamImageEditingPipeline(DiffusionPipeline, HiDreamImageLoraLoaderMixin
         # 6. Denoising loop
         refine_stage = False
         if reload_keys is not None:
+            logger.info(f"loading editing keys")
             load_info = self.transformer.load_state_dict(reload_keys['editing'], strict=False)
+            logger.info(f"finished loading editing keys")
             assert len(load_info.unexpected_keys) == 0
-            self.transformer.enable_adapters()
+            try:
+                self.transformer.enable_adapters()
+            except Exception as e:
+                pass
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
+                # === STAGE DETERMINATION ===
+                # Check if we need to switch from editing stage to refining stage
                 if reload_keys is not None and i == int(num_inference_steps * (1.0 - refine_strength)):
-                    self.transformer.disable_adapters()
+                    # Switch from editing to refining stage
+                    try:
+                        self.transformer.disable_adapters()
+                    except Exception as e:
+                        pass
+                    logger.info(f"loading refine keys")
                     load_info = self.transformer.load_state_dict(reload_keys['refine'], strict=False)
+                    logger.info(f"finished loading refine keys")
                     assert len(load_info.unexpected_keys) == 0
                     logger.info(f"Refining start at step {i}")
                     refine_stage = True
+
                 if self.interrupt:
                     continue
+
+                # === INPUT PREPARATION ===
                 if refine_stage:
+                    # Refining stage: Use target prompts and simpler input (no image conditioning)
                     latent_model_input_with_condition = torch.cat([latents] * 2) if self.do_classifier_free_guidance else latents
-                    prompt_embeds_t5 = target_prompt_embeds_t5
-                    prompt_embeds_llama3 = target_prompt_embeds_llama3
-                    pooled_prompt_embeds = target_pooled_prompt_embeds
+                    current_prompt_embeds_t5 = target_prompt_embeds_t5
+                    current_prompt_embeds_llama3 = target_prompt_embeds_llama3
+                    current_pooled_prompt_embeds = target_pooled_prompt_embeds
                 else:
+                    # Editing stage: Use original prompts and include image conditioning
                     latent_model_input = torch.cat([latents] * 3) if self.do_classifier_free_guidance else latents
                     latent_model_input_with_condition = torch.cat([latent_model_input, image_latents], dim=-1)
+                    current_prompt_embeds_t5 = prompt_embeds_t5
+                    current_prompt_embeds_llama3 = prompt_embeds_llama3
+                    current_pooled_prompt_embeds = pooled_prompt_embeds
+
+                # === TRANSFORMER SELECTION ===
+                # Choose which transformer to use for this step
+                if refine_stage and refiner is not None:
+                    transformer_func = refiner
+                else:
+                    transformer_func = self.transformer
+
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 timestep = t.expand(latent_model_input_with_condition.shape[0])
-                noise_pred = self.transformer(
+                noise_pred = transformer_func(
                     hidden_states=latent_model_input_with_condition,
                     timesteps=timestep,
-                    encoder_hidden_states_t5=prompt_embeds_t5,
-                    encoder_hidden_states_llama3=prompt_embeds_llama3,
-                    pooled_embeds=pooled_prompt_embeds,
+                    encoder_hidden_states_t5=current_prompt_embeds_t5,
+                    encoder_hidden_states_llama3=current_prompt_embeds_llama3,
+                    pooled_embeds=current_pooled_prompt_embeds,
                     return_dict=False,
                 )[0]
                 # perform guidance
+                noise_pred = -1.0 * noise_pred[..., :latents.shape[-1]]
                 if self.do_classifier_free_guidance:
                     if refine_stage:
                         uncond, full_cond = noise_pred.chunk(2)
                         noise_pred = uncond + self.guidance_scale * (full_cond - uncond)
-                        noise_pred = noise_pred[..., :latents.shape[-1]]
                     else:
-                        uncond, image_cond, full_cond = noise_pred.chunk(3)
-                        noise_pred = uncond + self.image_guidance_scale * (image_cond - uncond) + self.guidance_scale * (
-                                    full_cond - image_cond)
-                        noise_pred = noise_pred[..., :latents.shape[-1]]
-
-                noise_pred = -noise_pred
-
+                        if clip_cfg_norm:
+                            uncond, image_cond, full_cond = noise_pred.chunk(3)
+                            pred_text_ = image_cond + self.guidance_scale * (full_cond - image_cond)
+                            norm_full_cond = torch.norm(full_cond, dim=1, keepdim=True)
+                            norm_pred_text = torch.norm(pred_text_, dim=1, keepdim=True)
+                            scale = (norm_full_cond / (norm_pred_text + 1e-8)).clamp(min=0.0, max=1.0)
+                            pred_text = pred_text_ * scale
+                            noise_pred = uncond + self.image_guidance_scale * (pred_text - uncond)
+                        else:
+                            uncond, image_cond, full_cond = noise_pred.chunk(3)
+                            noise_pred = uncond + self.image_guidance_scale * (image_cond - uncond) + self.guidance_scale * (
+                                        full_cond - image_cond)
                 # compute the previous noisy sample x_t -> x_t-1
                 latents_dtype = latents.dtype
                 latents = self.scheduler.step(noise_pred, t, latents, return_dict=False)[0]
@@ -1124,9 +1172,9 @@ class HiDreamImageEditingPipeline(DiffusionPipeline, HiDreamImageLoraLoaderMixin
                     callback_outputs = callback_on_step_end(self, i, t, callback_kwargs)
 
                     latents = callback_outputs.pop("latents", latents)
-                    prompt_embeds_t5 = callback_outputs.pop("prompt_embeds_t5", prompt_embeds_t5)
-                    prompt_embeds_llama3 = callback_outputs.pop("prompt_embeds_llama3", prompt_embeds_llama3)
-                    pooled_prompt_embeds = callback_outputs.pop("pooled_prompt_embeds", pooled_prompt_embeds)
+                    current_prompt_embeds_t5 = callback_outputs.pop("prompt_embeds_t5", current_prompt_embeds_t5)
+                    current_prompt_embeds_llama3 = callback_outputs.pop("prompt_embeds_llama3", current_prompt_embeds_llama3)
+                    current_pooled_prompt_embeds = callback_outputs.pop("pooled_prompt_embeds", current_pooled_prompt_embeds)
 
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
