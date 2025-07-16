@@ -15,3 +15,6 @@ __pycache__/instruction_refinement.cpython-310.pyc
 __pycache__/pipeline_hidream_image_editing.cpython-310.pyc
 gradio_cached_examples/25/log.csv
 gradio_cached_examples/28/log.csv
+*.jpg
+*.json
+*_local.py
