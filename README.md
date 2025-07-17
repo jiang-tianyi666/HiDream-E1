@@ -8,7 +8,7 @@ HiDream-E1 is an image editing model built on [HiDream-I1](https://github.com/Hi
 <span style="color: #FF5733; font-weight: bold">For more features and to experience the full capabilities of our product, please visit [https://vivago.ai/](https://vivago.ai/).</span>
 
 ## Project Updates
-- 🌟 **July 16, 2025**: We've open-sourced the updated image editing model **HiDream-E1-1**. It supports dynamic resolution and is better in image quality and editing accuracy compared to HiDream-E1-Full.
+- 🌟 **July 16, 2025**: We've open-sourced the updated image editing model **HiDream-E1.1**. It supports dynamic resolution and is better in image quality and editing accuracy compared to HiDream-E1-Full.
 - 📝 **May 28, 2025**: We've released our technical report [HiDream-I1: A High-Efficient Image Generative Foundation Model with Sparse Diffusion Transformer](https://arxiv.org/abs/2505.22705).  Please use the Bibtex below to cite the paper.
 - 🚀 **April 28, 2025**: We've open-sourced the instruction-based image editing model **HiDream-E1**. 
 
@@ -20,7 +20,7 @@ We offer the full version of HiDream-E1. For more information about the models, 
 | Name            | Script                                             | Inference Steps | Resolution | HuggingFace repo       |
 | --------------- | -------------------------------------------------- | --------------- | ---------- | ---------------------- |
 | HiDream-E1-Full | [inference.py](./inference.py)                     | 28              | 768x768    | 🤗 [HiDream-E1-Full](https://huggingface.co/HiDream-ai/HiDream-E1-Full)  |
-| HiDream-E1-1 | [inference_e1_1.py](./inference_e1_1.py)                     | 28              | Dynamic(1M pixels)    | 🤗 [HiDream-E1-1](https://huggingface.co/HiDream-ai/HiDream-E1-1)  |
+| HiDream-E1.1 | [inference_e1_1.py](./inference_e1_1.py)                     | 28              | Dynamic(1M pixels)    | 🤗 [HiDream-E1.1](https://huggingface.co/HiDream-ai/HiDream-E1-1)  |
 > [!NOTE]
 > The code and model are under development and will be updated frequently.
 
@@ -35,7 +35,7 @@ pip install -U git+https://github.com/huggingface/diffusers.git
 ```
 
 
-For HiDream-E1-1, you can run the following script to generate images:
+For HiDream-E1.1, you can run the following script to generate images:
 
 ``` python 
 python ./inference_e1_1.py
@@ -55,7 +55,7 @@ python ./inference.py
 
 
 > [!NOTE]
-> For HiDream-E1-1, the model accepts direct instructions like `convert the image into a Ghibli style` and prompt refinement is no longer needed.
+> For HiDream-E1.1, the model accepts direct instructions like `convert the image into a Ghibli style` and prompt refinement is no longer needed.
 > 
 > For HiDream-E1-Full, the model accepts instructions in the following format:
 > ```
@@ -78,7 +78,7 @@ python ./inference.py
 
 ## Gradio Demo
 
-We also provide a Gradio demo for interactive image editing. For HiDream-E1-1, you can run the demo with:
+We also provide a Gradio demo for interactive image editing. For HiDream-E1.1, you can run the demo with:
 
 ``` python
 python gradio_demo_1_1.py 
@@ -102,7 +102,7 @@ python gradio_demo.py
 | UltraEdit          | 5.31           | 5.19         | 1.50         | 4.33         | 4.50          | 5.71          | 2.63           | 4.58          | 4.07            | 2.89       |
 | Gemini-2.0-Flash   | 4.87           | 7.71 | 6.30         | 5.10 | 7.30          | 3.33          | 5.94           | 6.29          | 5.99            | 6.95       |
 | HiDream-E1         | 5.32 | 6.98         | 6.45 | 5.01         | 7.57 | 6.49 | 5.99 | 6.35 | 6.40 | 7.54 |
-| HiDream-E1-1         | **7.47** | **7.97**         | **7.49** | **7.32** | **7.97** | **7.84** | **7.51** | **6.80** | **7.57** | **7.70** |
+| HiDream-E1.1         | **7.47** | **7.97**         | **7.49** | **7.32** | **7.97** | **7.84** | **7.51** | **6.80** | **7.57** | **7.70** |
 
 ## License
 
