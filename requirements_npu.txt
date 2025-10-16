@@ -1,0 +1,37 @@
+# HiDream-E1 NPU Edition Requirements
+# 华为昇腾 NPU 版本依赖
+
+# PyTorch (需要与 CANN 版本匹配)
+# 注意：请根据你的 CANN 版本安装对应的 torch
+# torch>=2.1.0  # 取消注释并根据实际情况调整版本
+# torch_npu  # 华为 NPU 插件，需要单独安装
+
+# 核心依赖
+torch>=2.5.1
+torchvision>=0.20.1
+transformers>=4.47.1
+einops>=0.7.0
+accelerate>=1.2.1
+safetensors
+peft
+
+# Diffusers (使用最新版)
+git+https://github.com/huggingface/diffusers.git
+
+# 图像处理
+Pillow>=9.0.0
+
+# Gradio (用于 demo)
+gradio>=4.0.0
+
+# 其他工具
+numpy
+tqdm
+
+# 注意事项：
+# 1. Flash Attention 不需要安装（NPU 不支持 CUDA Flash Attention）
+# 2. torch_npu 需要根据你的 CANN 版本从华为官方渠道安装
+# 3. 推荐的安装步骤：
+#    a. 先安装 CANN toolkit 和 kernels
+#    b. 安装匹配版本的 torch 和 torch_npu
+#    c. 再安装这个文件中的其他依赖
