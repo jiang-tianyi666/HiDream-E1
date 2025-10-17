@@ -25,7 +25,7 @@ Pillow>=9.0.0
 gradio>=4.0.0
 
 # 其他工具
-numpy
+numpy==1.26.4
 tqdm
 
 # 注意事项：
