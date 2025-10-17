@@ -7,8 +7,10 @@
 # torch_npu  # 华为 NPU 插件，需要单独安装
 
 # 核心依赖
-torch>=2.5.1
-torchvision>=0.20.1
+# 提示：请根据安装的 torch_npu 版本选择完全匹配的 torch/torchvision 版本，
+# 例如 torch==2.1.0、torchvision==0.16.0；此处留空以避免误装不兼容的 2.5+ 版本。
+# torch==2.1.0
+# torchvision==0.16.0
 transformers>=4.47.1
 einops>=0.7.0
 accelerate>=1.2.1

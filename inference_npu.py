@@ -30,10 +30,13 @@ DTYPE = device_manager.dtype
 
 # ============ 模型路径配置 ============
 try:
-    from local_config import LLAMA_PATH
-    LLAMA_MODEL_PATH = LLAMA_PATH
-    logging.info("📦 使用本地 Llama 模型")
-except ImportError:
+    from local_config import LLAMA_PATH, verify_models
+    if verify_models(verbose=False):
+        LLAMA_MODEL_PATH = LLAMA_PATH
+        logging.info("📦 使用本地 Llama 模型")
+    else:
+        raise FileNotFoundError("本地模型路径验证失败")
+except (ImportError, FileNotFoundError):
     LLAMA_MODEL_PATH = "meta-llama/Llama-3.1-8B-Instruct"
     logging.info("将从 HuggingFace 下载 Llama 模型")
 # ======================================

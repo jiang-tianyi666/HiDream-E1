@@ -120,7 +120,8 @@ class DeviceManager:
             torch.Generator
         """
         try:
-            generator = torch.Generator(self.device).manual_seed(int(seed))
+            device_type = torch.device(self.device).type
+            generator = torch.Generator(device_type).manual_seed(int(seed))
             return generator
         except Exception as e:
             logger.warning(f"Failed to create generator on {self.device}: {e}")
