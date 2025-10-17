@@ -11,7 +11,7 @@ import os
 
 # ========== 配置你的模型基础目录 ==========
 # 默认路径，根据实际情况修改
-MODEL_BASE_DIR = "/home/ma-user/work/jiangtianyi/hidream_models"
+MODEL_BASE_DIR = "/home/ma-user/work/jiangtianyi/HiDream-E1/hidream_models"
 
 # 如果模型在其他位置，修改这里，例如：
 # MODEL_BASE_DIR = "/data/models/hidream"

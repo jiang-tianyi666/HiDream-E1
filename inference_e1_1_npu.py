@@ -1,10 +1,31 @@
 import torch
+import os
+
+# ============ NPU 提前配置（必须在导入其他库之前）============
+try:
+    import torch_npu
+    # 禁用 JIT 编译，避免精度模式错误
+    torch_npu.npu.set_compile_mode(jit_compile=False)
+    print("✓ NPU JIT compile disabled")
+
+    # 设置选项（如果可能）
+    try:
+        torch_npu.npu.set_option({
+            "NPU_FUZZY_COMPILE_BLACKLIST": "Reciprocal"
+        })
+    except:
+        pass
+
+    print("✓ NPU pre-configured")
+except Exception as e:
+    print(f"Warning: NPU pre-config failed: {e}")
+# ==========================================================
+
 from transformers import PreTrainedTokenizerFast, LlamaForCausalLM
 from pipeline_hidream_image_editing import HiDreamImageEditingPipeline
 from PIL import Image, ImageOps
 from diffusers import HiDreamImageTransformer2DModel
 import json
-import os
 from collections import defaultdict
 from safetensors.torch import safe_open
 import math
