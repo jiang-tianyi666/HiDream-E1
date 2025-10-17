@@ -30,10 +30,23 @@ DEVICE = device_manager.device
 DTYPE = device_manager.dtype
 # =========================================
 
-# Paths and configuration
-LLAMA_PATH = "meta-llama/Llama-3.1-8B-Instruct"
-HIDREAM_I1_PATH = "HiDream-ai/HiDream-I1-Full"
-HIDREAM_E1_PATH = "HiDream-ai/HiDream-E1-1"
+# ============ 模型路径配置 ============
+# 方法 1: 使用本地模型（推荐，如果网络不通）
+# 取消下面的注释并设置正确的路径
+try:
+    from local_config import LLAMA_PATH, HIDREAM_I1_PATH, HIDREAM_E1_PATH, verify_models
+    logging.info("📦 使用本地模型配置")
+    if not verify_models(verbose=False):
+        raise FileNotFoundError("本地模型路径验证失败")
+    logging.info("✓ 本地模型路径验证成功")
+except (ImportError, FileNotFoundError) as e:
+    # 方法 2: 使用 HuggingFace 在线下载（需要网络）
+    logging.info(f"未使用本地模型配置 ({e})")
+    logging.info("将从 HuggingFace 下载模型（需要网络连接）")
+    LLAMA_PATH = "meta-llama/Llama-3.1-8B-Instruct"
+    HIDREAM_I1_PATH = "HiDream-ai/HiDream-I1-Full"
+    HIDREAM_E1_PATH = "HiDream-ai/HiDream-E1-1"
+# ======================================
 
 # Flash Attention 处理
 # NPU 不支持 CUDA Flash Attention，这里禁用它

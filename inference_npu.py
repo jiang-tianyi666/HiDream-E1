@@ -28,6 +28,16 @@ DEVICE = device_manager.device
 DTYPE = device_manager.dtype
 # =========================================
 
+# ============ 模型路径配置 ============
+try:
+    from local_config import LLAMA_PATH
+    LLAMA_MODEL_PATH = LLAMA_PATH
+    logging.info("📦 使用本地 Llama 模型")
+except ImportError:
+    LLAMA_MODEL_PATH = "meta-llama/Llama-3.1-8B-Instruct"
+    logging.info("将从 HuggingFace 下载 Llama 模型")
+# ======================================
+
 # Flash Attention 处理
 os.environ.setdefault("DIFFUSERS_ATTENTION_TYPE", "vanilla")
 logging.info(f"Attention type: {os.environ.get('DIFFUSERS_ATTENTION_TYPE', 'default')}")
@@ -40,9 +50,9 @@ logging.info("=" * 60)
 logging.info("Loading models...")
 logging.info("=" * 60)
 
-tokenizer_4 = PreTrainedTokenizerFast.from_pretrained("meta-llama/Llama-3.1-8B-Instruct")
+tokenizer_4 = PreTrainedTokenizerFast.from_pretrained(LLAMA_MODEL_PATH)
 text_encoder_4 = LlamaForCausalLM.from_pretrained(
-    "meta-llama/Llama-3.1-8B-Instruct",
+    LLAMA_MODEL_PATH,
     output_hidden_states=True,
     output_attentions=True,
     torch_dtype=DTYPE,  # 使用自动检测的数据类型
