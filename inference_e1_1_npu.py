@@ -49,6 +49,11 @@ preferred_device = os.environ.get('PREFERRED_DEVICE', None)  # None 表示自动
 device_manager = DeviceManager(preferred_device=preferred_device)
 DEVICE = device_manager.device
 DTYPE = device_manager.dtype
+# 强制低精度，减少显存占用
+if DTYPE == torch.float32:
+    logging.info("Detected float32 dtype, forcing float16 for lower memory usage")
+    DTYPE = torch.float16
+device_manager.set_memory_efficient_mode()
 # =========================================
 
 # ============ 模型路径配置 ============
@@ -74,7 +79,7 @@ except (ImportError, FileNotFoundError) as e:
 os.environ.setdefault("DIFFUSERS_ATTENTION_TYPE", "vanilla")
 logging.info(f"Attention type: {os.environ.get('DIFFUSERS_ATTENTION_TYPE', 'default')}")
 
-def resize_image(pil_image, image_size = 1024):
+def resize_image(pil_image, image_size = 768):
     while min(*pil_image.size) >= 2 * image_size:
         pil_image = pil_image.resize(
             tuple(x // 2 for x in pil_image.size), resample=Image.BOX
@@ -153,11 +158,10 @@ def init_models():
 
     # Load editing weights
     logging.info(f"Loading editing weights from {HIDREAM_E1_PATH}...")
-    src_dict = transformer.state_dict()
     edit_dict = load_safetensors(HIDREAM_E1_PATH + "/transformer")
-    reload_keys = {"editing": src_dict, "refine": edit_dict}
     transformer.load_state_dict(edit_dict, strict=True)
-    logging.info("✓ Editing weights loaded")
+    reload_keys = None  # 禁用精修阶段，避免重复加载权重
+    logging.info("✓ Editing weights loaded (refiner disabled)")
 
     # Create pipeline
     logging.info("Creating pipeline...")
@@ -168,6 +172,12 @@ def init_models():
         torch_dtype=DTYPE,  # 使用自动检测的数据类型
         transformer=transformer
     ).to(DEVICE, DTYPE)  # 使用设备管理器的设备和数据类型
+
+    try:
+        pipe.enable_attention_slicing()
+        logging.info("✓ Attention slicing enabled to reduce memory usage")
+    except Exception as e:
+        logging.warning(f"Failed to enable attention slicing: {e}")
 
     logging.info("=" * 60)
     logging.info("✓ Models loaded successfully!")
@@ -181,7 +191,7 @@ def init_models():
     return pipe, reload_keys
 
 def edit_image(image_path, instruction, negative_instruction="low quality, blurry, distorted",
-               guidance_scale=3.0, img_guidance_scale=1.5, steps=28, refine_strength=0.3,
+               guidance_scale=3.0, img_guidance_scale=1.5, steps=24, refine_strength=0.0,
                clip_cfg_norm=True, seed=3):
     """
     Edit an image using the HiDream pipeline
@@ -214,6 +224,7 @@ def edit_image(image_path, instruction, negative_instruction="low quality, blurr
 
         # 使用设备管理器创建生成器
         generator = device_manager.create_generator(seed)
+        device_manager.empty_cache()
 
         # Generate edited image
         logging.info("Starting image generation...")
@@ -281,8 +292,8 @@ def main():
             negative_instruction="low quality, blurry, distorted",
             guidance_scale=3.0,
             img_guidance_scale=1.5,
-            steps=28,
-            refine_strength=0.3,
+            steps=24,
+            refine_strength=0.0,
             clip_cfg_norm=True,
             seed=3,
         )
